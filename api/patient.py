@@ -1,43 +1,58 @@
-import datetime
 from db.models import Patient
+from datetime import date
 
-async def add_patient(first_name, last_name, date_of_birth):
-    # Validate if the selected date is real (prevents invalid days like Feb 30)
-    year, month, day = map(int, date_of_birth.split("-"))
-    try:
-        dob = datetime.date(year, month, day)  # This raises an error if the date is invalid
-    except ValueError:
-        return None, "Invalid birthdate. Please select a valid date."
+# CRUD Functions for patients
 
-    # Check if a patient already exists with the same name and DOB
-    existing_patient = await Patient.filter(first_name=first_name, last_name=last_name, date_of_birth=dob).first()
+# Create a new patient
+async def add_patient(first_name: str, last_name: str, dob: date, email: str):
+    # Checking for existing patient
+    existing_patient = await Patient.filter(
+        first_name=first_name, last_name=last_name, date_of_birth=dob, email=email
+    ).first()
 
     if existing_patient:
-        return None, "A patient with this name and birthdate already exists."
+        raise ValueError("A patient with this information already exists. Try again.")
 
-    # Create a new patient
-    new_patient = await Patient.create(
-        first_name=first_name,
-        last_name=last_name,
-        date_of_birth=dob,
+    patient = await Patient.create(
+        first_name=first_name, last_name=last_name, date_of_birth=dob, email=email
     )
+    return patient  # Successfully created
 
-    return new_patient, None  # Return the new patient object and no error
+# Get all patients
+async def get_all_patients():
+    return await Patient.all()
+
+# Get a single patient by ID
+async def get_patient_by_id(patient_id: int):
+    patient = await Patient.filter(id=patient_id).first()
     
-async def lookup_patient(last_name, dob_input):
-    try:
-        # Convert user input (string) into a date object
-        dob = datetime.datetime.strptime(dob_input, "%Y-%m-%d").date()
-    except ValueError:
-        return None, "Invalid date format. Use YYYY-MM-DD."
-
-    # Search for a patient with both last name and DOB
-    patient = await Patient.filter(last_name=last_name, date_of_birth=dob).first()
-
     if not patient:
-        return None, "No matching patient found with this last name and birthdate. Try again."
+        raise ValueError("No patient found with this ID.")
 
-    return patient, None
+    return patient
+
+# Update a patient's information
+async def update_patient(patient_id: int, first_name: str=None, last_name: str=None, dob: date=None, email: str=None):
+    """Updates a patient's information if they exist."""
+    patient = await get_patient_by_id(patient_id)
+
+    if first_name:
+        patient.first_name = first_name
+    if last_name:
+        patient.last_name = last_name
+    if dob:
+        patient.date_of_birth = dob
+    if email:
+        patient.email = email
+
+    await patient.save()
+    return patient  # Successfully updated
+
+# Delete a patient
+async def delete_patient(patient_id: int):
+    patient = await get_patient_by_id(patient_id)
+    await patient.delete()
+    return f"Patient {patient.first_name} {patient.last_name} deleted successfully."
 
 
     
