@@ -1,17 +1,25 @@
 from db.models import Patient
 from datetime import date
+import re
 
-# CRUD Functions for patients
+# Function to validate email format using regex
+def validate_email(email):
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(pattern, email))
+
+""" CRUD Functions for patients """
 
 # Create a new patient
 async def add_patient(first_name: str, last_name: str, dob: date, email: str):
-    # Checking for existing patient
-    existing_patient = await Patient.filter(
-        first_name=first_name, last_name=last_name, date_of_birth=dob, email=email
-    ).first()
+    # Check if valid email format
+    if not validate_email(email):
+        raise ValueError(f"Invalid email format. Example: example@mail.com")
 
-    if existing_patient:
-        raise ValueError("A patient with this information already exists. Try again.")
+    # Checking for existing email
+    existing_email = await Patient.filter(email=email).first()
+    
+    if existing_email:
+        raise ValueError(f"{email} email is in use.")
 
     patient = await Patient.create(
         first_name=first_name, last_name=last_name, date_of_birth=dob, email=email
