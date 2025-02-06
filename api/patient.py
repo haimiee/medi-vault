@@ -41,7 +41,6 @@ async def get_patient_by_id(patient_id: int):
 
 # Update a patient's information
 async def update_patient(patient_id: int, first_name: str=None, last_name: str=None, dob: date=None, email: str=None):
-    """Updates a patient's information if they exist."""
     patient = await get_patient_by_id(patient_id)
 
     if first_name:
@@ -61,6 +60,3 @@ async def delete_patient(patient_id: int):
     patient = await get_patient_by_id(patient_id)
     await patient.delete()
     return f"Patient {patient.first_name} {patient.last_name} deleted successfully."
-
-
-    

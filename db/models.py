@@ -16,4 +16,4 @@ class Prescription(models.Model):
     patient = fields.ForeignKeyField("models.Patient")  # Link to Patient
     drug = fields.ForeignKeyField("models.Drug")  # Link to Drug
     dosage = fields.CharField(max_length=100)
-    refill_date = fields.DateField(null=True)  # User inputs when insurance allows next refill
+    refill_date = fields.DateField(null=True)  # User inputs when is next refill

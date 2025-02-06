@@ -45,3 +45,10 @@ async def delete_drug(drug_id: int):
     await drug.delete()
     return f"Drug '{drug.drug_name}' deleted successfully."
 
+# Fetch a drug by its name
+async def get_drug_by_name(drug_name: str):
+    drug = await Drug.filter(drug_name=drug_name).first()
+    if not drug:
+        raise ValueError(f"No drug found with name '{drug_name}'.")
+    return drug
+
