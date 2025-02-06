@@ -1,36 +1,94 @@
-from typing import List, Dict
-from nicegui import ui, app
+from nicegui import ui
 import asyncio
+from datetime import date, datetime
 
-# from api.patient import add_patient, lookup_patient
-# from api.prescription import add_prescription, get_prescriptions, update_prescription, delete_prescription
-# from api.drug import add_drug, get_all_drugs
-
-# Test! 
+from db.lib import init_db
+from api.drug import add_drug, get_all_drugs, get_drug_by_id, update_drug, delete_drug
+from api.patient import add_patient, get_all_patients, get_patient_by_id, update_patient, delete_patient
+from api.prescription import add_prescription, get_all_prescriptions, get_prescription_id, update_refill_date, delete_prescription
 
 def run_ui():
+
+    # Main Page Setup
     @ui.page("/")
-    def main_page():
-        ui.label("Select Your Birthdate")
+    async def main_page():
+        ui.label("Hi! Welcome to Medivault")
 
-        months = [str(i) for i in range(1, 13)]
-        days = [str(i) for i in range(1, 32)]
-        years = [str(i) for i in range(1900, 2025)]
+        # Tabs UI
+        with ui.tabs().classes('w-full') as tabs:
+            patients_tab = ui.tab('Patients')
+            drugs_tab = ui.tab('Drugs')
+            prescriptions_tab = ui.tab('Prescriptions')
+        
+        # Tab Panels
+        with ui.tab_panels(tabs, value=patients_tab).classes('w-full'):
+            
+            # Patients Tab
+            with ui.tab_panel(patients_tab):
+                await view_patients_table()
+                ui.button("Add Test Patients", on_click=add_test_patients)
 
-        month_dropdown = ui.select(months, value=None, label="Month")
-        day_dropdown = ui.select(days, value=None, label="Day")
-        year_dropdown = ui.select(years, value=None, label="Year")
+            # Drugs Tab
+            with ui.tab_panel(drugs_tab):
+                ui.label('Second tab')
+            
+            # Prescriptions Tab
+            with ui.tab_panel(prescriptions_tab):
+                ui.label('Third tab')
 
-        output_label = ui.label("").style("font-size: 18px; color: blue;")
 
-        def update_output():
-            selected_month = month_dropdown.value
-            selected_day = day_dropdown.value
-            selected_year = year_dropdown.value
+# Function for refreshable patients table/grid
+@ui.refreshable
+async def view_patients_table():    
+    patients = await get_all_patients()
 
-            if selected_month and selected_day and selected_year:
-                output_label.set_text(f"Selected Date: {selected_month}-{selected_day}-{selected_year}")
-            else:
-                output_label.set_text("Please select Month, Day, and Year.")
+    # Column Setup
+    columns = [
+        {'field': 'ID', 'sortable': True},
+        {'field': 'First Name', 'editable': True},
+        {'field': 'Last Name', 'editable': True},
+        {'field': 'Date of Birth', 'editable': True},
+        {'field': 'Email', 'editable': True}
+    ]
 
-        ui.button("Submit", on_click=update_output)
+    # Row Setup
+    rows = []
+
+    for patient in patients:
+        rows.append(
+            {'ID': patient.id, 'First Name': patient.first_name, 'Last Name': patient.last_name, 'Date of Birth': str(patient.date_of_birth), 'Email': patient.email}
+        )
+
+    # Function to handle changes in cells in the grid (inspired by NiceGUI)
+    async def handle_cell_value_change(e):
+        new_row = e.args['data']
+        ui.notify(f'Updated row to: {e.args["data"]}')
+        rows[:] = [row | new_row if row['ID'] == new_row['ID'] else row for row in rows]
+
+        new_date = datetime.strptime(new_row['Date of Birth'], '%Y-%m-%d').date()
+        await update_patient(new_row['ID'], new_row['First Name'], new_row['Last Name'], new_date, new_row['Email'])
+
+        print(type(new_row['Date of Birth']))
+
+    aggrid = ui.aggrid({
+        'columnDefs': columns,
+        'rowData': rows,
+        'rowSelection': 'multiple',
+        'stopEditingWhenCellsLoseFocus': True,
+    }).on('cellValueChanged', handle_cell_value_change)
+
+    aggrid.classes(add="ag-theme-balham-dark") # Dark theme for grid
+
+# Adding patients test
+async def add_test_patients():
+    try: 
+        patient1 = await add_patient("Haimie", "Nguyen", date(2001, 9, 15), "hn@mail.com")
+        patient2 = await add_patient("Tyler", "Mcfam", date(2001, 9, 11), "tler@mail.com")
+        ui.notify("Test patients added successfully!")
+        view_patients_table.refresh() # Refresh table after adding
+    except ValueError as ve:
+        ui.notify(f"Error: {ve}", color="red")
+    except Exception as e:
+        ui.notify(f"Unexpected Error: {e}", color="red")
+
+ui.run(dark=True)
