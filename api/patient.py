@@ -43,20 +43,26 @@ async def get_patient_by_id(patient_id: int):
 async def update_patient(patient_id: int, first_name: str=None, last_name: str=None, dob: date=None, email: str=None):
     patient = await get_patient_by_id(patient_id)
 
+    if email:
+        if not validate_email(email):
+            raise ValueError(f"Invalid email format. Example: example@mail.com")
+        else:
+            patient.email = email
     if first_name:
         patient.first_name = first_name
     if last_name:
         patient.last_name = last_name
     if dob:
         patient.date_of_birth = dob
-    if email:
-        patient.email = email
 
     await patient.save()
     return patient  # Successfully updated
 
 # Delete a patient
 async def delete_patient(patient_id: int):
-    patient = await get_patient_by_id(patient_id)
-    await patient.delete()
-    return f"Patient {patient.first_name} {patient.last_name} deleted successfully."
+    patient = await Patient.get_or_none(patient_id=patient_id)
+    
+    if not patient:
+        raise ValueError(f"No patient found with ID '{patient_id}'.")
+    
+    return patient

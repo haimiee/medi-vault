@@ -28,6 +28,13 @@ async def get_drug_by_id(drug_id: int):
 
     return drug
 
+# Fetch a drug by its name
+async def get_drug_by_name(drug_name: str):
+    drug = await Drug.filter(drug_name=drug_name).first()
+    if not drug:
+        raise ValueError(f"No drug found with name '{drug_name}'.")
+    return drug
+
 # Update a drug's name
 async def update_drug(drug_id: int, new_name: str):
     """Updates a drug's name if it exists."""
@@ -41,14 +48,9 @@ async def update_drug(drug_id: int, new_name: str):
 
 # Delete a drug
 async def delete_drug(drug_id: int):
-    drug = await get_drug_by_id(drug_id)
-    await drug.delete()
-    return f"Drug '{drug.drug_name}' deleted successfully."
-
-# Fetch a drug by its name
-async def get_drug_by_name(drug_name: str):
-    drug = await Drug.filter(drug_name=drug_name).first()
+    drug = await Drug.get_or_none(id=drug_id)
+    
     if not drug:
-        raise ValueError(f"No drug found with name '{drug_name}'.")
+        raise ValueError(f"No patient found with ID '{drug_id}'.")
+    
     return drug
-
