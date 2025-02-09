@@ -3,9 +3,10 @@ import asyncio
 from datetime import date, datetime
 
 from db.lib import init_db
+from db.models import Patient, Drug
 from api.drug import add_drug, get_all_drugs, get_drug_by_id, update_drug, delete_drug
 from api.patient import add_patient, get_all_patients, get_patient_by_id, update_patient, delete_patient
-from api.prescription import add_prescription, get_all_prescriptions, get_prescription_id, update_refill_date, delete_prescription
+from api.prescription import add_prescription, get_all_prescriptions, get_prescription_id, update_prescription, delete_prescription
 
 def run_ui():
 
@@ -26,7 +27,7 @@ def run_ui():
             # Patients Tab
             with ui.tab_panel(patients_tab):
                 await view_patients_table()
-                ui.button("Add Test Patients", on_click=add_test_patients)
+                ui.button("Add Patient", on_click=add_patient_popup)
 
             # Drugs Tab
             with ui.tab_panel(drugs_tab):
@@ -35,9 +36,31 @@ def run_ui():
             
             # Prescriptions Tab
             with ui.tab_panel(prescriptions_tab):
-                ui.label("Yo")
                 await view_prescriptions_table()
                 ui.button("Add Test Prescriptions", on_click=add_test_prescriptions)
+
+# UI dialog to input new patient info
+async def add_patient_popup():
+    with ui.dialog() as dialog:
+        with ui.card():
+            ui.label("Add New Patient").classes("text-lg font-bold text-center w-full")
+            
+            # Input fields for patient data
+            first_name = ui.input("First name").classes("w-full")
+            last_name = ui.input("Last name").classes("w-full")
+            ui.label("Date of birth").classes("text-gray-300 text-base")
+            dob = ui.date().classes("w-1/2 text-sm")
+            email = ui.input("Email").classes("w-full")
+            
+            with ui.row():
+                ui.button("Save")
+                # ui.button("Save", on_click=lambda: save_patient_info(first_name.value, last_name.value, dob.value, email.value))
+                ui.button("Cancel", on_click=dialog.close)
+
+    dialog.open()
+
+async def save_patient_info(first_name, last_name, dob, email):
+    pass
 
 
 # Function for refreshable patients table/grid
@@ -63,13 +86,60 @@ async def view_patients_table():
         )
 
     # Function to handle changes in cells in the grid (inspired by NiceGUI)
+    pending_changes = {} # Stores changes that haven't been saved yet
+    
     async def handle_cell_value_change(e):
         new_row = e.args['data']
-        ui.notify(f'Updated row to: {e.args["data"]}')
         rows[:] = [row | new_row if row['ID'] == new_row['ID'] else row for row in rows]
 
+        # pending_changes[new_row['ID']] = new_row
+        # ui.notify(f"Editing Patient with ID '{new_row['ID']}' (Not saved yet)")
+
         new_date = datetime.strptime(new_row['Date of Birth'], '%Y-%m-%d').date()
-        await update_patient(new_row['ID'], new_row['First Name'], new_row['Last Name'], new_date, new_row['Email'])
+        try:
+            await update_patient(new_row['ID'], new_row['First Name'], new_row['Last Name'], new_date, new_row['Email'])
+            ui.notify(f'Updated row to: {e.args["data"]}')
+        except Exception as e:
+            ui.notify(f"{e}", color="red")
+
+    # async def add_row():
+    #     new_id = max((dx['id'] for dx in rows), default=-1) + 1
+    #     rows.append({'ID': new_id, 'First Name': 'Patient First', 'Last Name': 'Patient Last', 'Date of Birth': date, 'Email': 'Email'})
+    #     ui.notify(f'Added row with ID {new_id}')
+    #     aggrid.update()
+
+    # async def delete_selected():
+    #     selected_id = [row['id'] for row in await aggrid.get_selected_rows()]
+    #     rows[:] = [row for row in rows if row['id'] not in selected_id]
+    #     ui.notify(f'Deleted row with ID {selected_id}')
+    #     aggrid.update()
+
+    # async def save_changes():
+    #     global pending_changes
+
+    #     if not pending_changes:
+    #         ui.notify("No changes to save.")
+    #         return
+        
+    #     try:
+    #         for new_row in pending_changes.items():
+    #             new_date = datetime.strptime(new_row['Date of Birth'], '%Y-%m-%d').date()
+
+    #             await update_patient(
+    #                 new_row['ID'], 
+    #                 new_row['First Name'], 
+    #                 new_row['Last Name'], 
+    #                 new_date, 
+    #                 new_row['Email']
+    #             )
+
+    #             ui.notify(f"Saved {len(pending_changes)} changes!", color="green")
+    #             pending_changes.clear()
+
+    #     except Exception as e:
+    #         ui.notify(f"Error saving changes: {e}", color="red")
+
+    # save_button = ui.button("Save Changes", on_click=lambda: asyncio.create_task(save_changes()))
 
     aggrid = ui.aggrid({
         'columnDefs': columns,
@@ -164,9 +234,20 @@ async def view_prescriptions_table():
     rows = []
 
     for prescription in prescriptions:
+        patient = await Patient.get_or_none(id=prescription.patient_id)  # Fetch patient directly
+
+        drug = await Drug.get_or_none(id=prescription.drug_id)  # Fetch drug directly
+
         rows.append(
-            {'ID': prescription.id, 'Patient Email': prescription.patient.email, 'Drug': prescription.drug, 'Dosage': prescription.dosage, 'Refill Date': prescription.refill_date}
+            {
+                'ID': prescription.id, 
+                'Patient Email': patient.email if patient else "Unknown",  # Extract email safely
+                'Drug': drug.drug_name if drug else "Unknown",  # Extract drug name safely
+                'Dosage': prescription.dosage, 
+                'Refill Date': prescription.refill_date
+            }
         )
+
 
     # Function to handle changes in cells in the grid (inspired by NiceGUI)
     async def handle_cell_value_change(e):
@@ -175,7 +256,7 @@ async def view_prescriptions_table():
         rows[:] = [row | new_row if row['ID'] == new_row['ID'] else row for row in rows]
 
         new_date = datetime.strptime(new_row['Refill Date'], '%Y-%m-%d').date()
-        await update_patient(new_row['ID'], new_date)
+        await update_prescription(new_row['ID'], new_row['Patient'], new_row['Drug'], new_row['Dosage'], new_date)
 
     aggrid = ui.aggrid({
         'columnDefs': columns,
@@ -189,33 +270,33 @@ async def view_prescriptions_table():
     # ui.button('Delete selected', on_click=delete_selected)
     # ui.button('New row', on_click=add_row)
 
-# Adding drugs test
+# Adding prescriptions test
 async def add_test_prescriptions():
+    # try: 
+    #     prescription1 = await add_prescription("hn@mail.com", "Adderall", "20mg", date(2025, 2, 5))
+    #     ui.notify("Test prescription added successfully!")
+    #     view_prescriptions_table.refresh()
+    # except ValueError as ve:
+    #     ui.notify(f"Error: {ve}", color="red")
+    # except Exception as e:
+    #     ui.notify(f"Unexpected Error: {e}", color="red")
+
     try: 
-        prescription1 = await add_prescription("hn@mail.com", "Adderall", "20mg", date(2025, 2, 5))
+        prescription = await add_prescription("tler@mail.com", "Adderall", "20mg", date(2025, 2, 6))
         ui.notify("Test prescription added successfully!")
-        view_prescriptions_table.refresh()
+        view_prescriptions_table.refresh()  # ✅ Correct table refresh
     except ValueError as ve:
         ui.notify(f"Error: {ve}", color="red")
     except Exception as e:
         ui.notify(f"Unexpected Error: {e}", color="red")
 
-    try: 
-        prescription2 = await add_prescription("tler@mail.com", "Adderall", "20mg", date(2025, 2, 5))
-        ui.notify("Test prescription added successfully!")
-        view_drugs_table.refresh()
-    except ValueError as ve:
-        ui.notify(f"Error: {ve}", color="red")
-    except Exception as e:
-        ui.notify(f"Unexpected Error: {e}", color="red")
-
-    try: 
-        prescription3 = await add_prescription("jujujabajo@mail.com", "Adderall", "20mg", date(2025, 2, 5))
-        ui.notify("Test prescription added successfully!")
-        view_drugs_table.refresh()
-    except ValueError as ve:
-        ui.notify(f"Error: {ve}", color="red")
-    except Exception as e:
-        ui.notify(f"Unexpected Error: {e}", color="red")
+    # try: 
+    #     prescription3 = await add_prescription("jujujabajo@mail.com", "Adderall", "20mg", date(2025, 2, 5))
+    #     ui.notify("Test prescription added successfully!")
+    #     view_drugs_table.refresh()
+    # except ValueError as ve:
+    #     ui.notify(f"Error: {ve}", color="red")
+    # except Exception as e:
+    #     ui.notify(f"Unexpected Error: {e}", color="red")
 
 ui.run(dark=True)
