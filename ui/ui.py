@@ -53,14 +53,30 @@ async def add_patient_popup():
             email = ui.input("Email").classes("w-full")
             
             with ui.row():
-                ui.button("Save")
-                # ui.button("Save", on_click=lambda: save_patient_info(first_name.value, last_name.value, dob.value, email.value))
+                ui.button("Save", on_click=lambda: save_patient_info(
+                    dialog, first_name.value, last_name.value, dob.value, email.value
+                    )
+                )
                 ui.button("Cancel", on_click=dialog.close)
 
     dialog.open()
 
-async def save_patient_info(first_name, last_name, dob, email):
-    pass
+# Save new patient info from popup function to db
+async def save_patient_info(dialog, first_name, last_name, dob, email):
+    if not first_name or not last_name or not dob or not email:
+        ui.notify("All fields are required!", type="negative")
+        return
+
+    try:
+        patient = await add_patient(first_name, last_name, dob, email)  
+
+        ui.notify(f"Patient '{first_name} {last_name}' added successfully", type="positive")
+
+        view_patients_table.refresh() # Refresh patients table
+        dialog.close() # Close dialog UI after successfully saving
+        
+    except Exception as e:
+        ui.notify(str(e), type="negative")
 
 
 # Function for refreshable patients table/grid
@@ -114,33 +130,6 @@ async def view_patients_table():
     #     ui.notify(f'Deleted row with ID {selected_id}')
     #     aggrid.update()
 
-    # async def save_changes():
-    #     global pending_changes
-
-    #     if not pending_changes:
-    #         ui.notify("No changes to save.")
-    #         return
-        
-    #     try:
-    #         for new_row in pending_changes.items():
-    #             new_date = datetime.strptime(new_row['Date of Birth'], '%Y-%m-%d').date()
-
-    #             await update_patient(
-    #                 new_row['ID'], 
-    #                 new_row['First Name'], 
-    #                 new_row['Last Name'], 
-    #                 new_date, 
-    #                 new_row['Email']
-    #             )
-
-    #             ui.notify(f"Saved {len(pending_changes)} changes!", color="green")
-    #             pending_changes.clear()
-
-    #     except Exception as e:
-    #         ui.notify(f"Error saving changes: {e}", color="red")
-
-    # save_button = ui.button("Save Changes", on_click=lambda: asyncio.create_task(save_changes()))
-
     aggrid = ui.aggrid({
         'columnDefs': columns,
         'rowData': rows,
@@ -154,16 +143,16 @@ async def view_patients_table():
     # ui.button('New row', on_click=add_row)
 
 # Adding patients test
-async def add_test_patients():
-    try: 
-        patient1 = await add_patient("Haimie", "Nguyen", date(2001, 9, 15), "hn@mail.com")
-        patient2 = await add_patient("Tyler", "Mcfam", date(2001, 9, 11), "tler@mail.com")
-        ui.notify("Test patients added successfully!")
-        view_patients_table.refresh() # Refresh table after adding
-    except ValueError as ve:
-        ui.notify(f"Error: {ve}", color="red")
-    except Exception as e:
-        ui.notify(f"Unexpected Error: {e}", color="red")
+# async def add_test_patients():
+#     try: 
+#         patient1 = await add_patient("Haimie", "Nguyen", date(2001, 9, 15), "hn@mail.com")
+#         patient2 = await add_patient("Tyler", "Mcfam", date(2001, 9, 11), "tler@mail.com")
+#         ui.notify("Test patients added successfully!")
+#         view_patients_table.refresh() # Refresh table after adding
+#     except ValueError as ve:
+#         ui.notify(f"Error: {ve}", color="red")
+#     except Exception as e:
+#         ui.notify(f"Unexpected Error: {e}", color="red")
 
 # Function for refreshable drugs table/grid
 @ui.refreshable
