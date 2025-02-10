@@ -13,12 +13,15 @@ async def add_prescription(patient_email: str, drug_name: str, dosage: str, refi
     if not drug:
         raise ValueError(f"Drug {drug_name} does not exist in the database.")
 
+    # Remove spaces in dosage (e.g., "10 mg" to "10mg")
+    dosage = dosage.replace(" ", "")
+
     existing_prescription = await Prescription.get_or_none(
         patient=patient, drug=drug, dosage=dosage, refill_date=refill_date
     )
 
     if existing_prescription:
-        raise ValueError("That prescription for already exists.")
+        raise ValueError(f"That prescription for {patient_email} already exists.")
 
     prescription = await Prescription.create(
         patient=patient, drug=drug, dosage=dosage, refill_date=refill_date

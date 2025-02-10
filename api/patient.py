@@ -60,9 +60,11 @@ async def update_patient(patient_id: int, first_name: str=None, last_name: str=N
 
 # Delete a patient
 async def delete_patient(patient_id: int):
-    patient = await Patient.get_or_none(patient_id=patient_id)
+    patient = await Patient.get_or_none(id=patient_id)
     
     if not patient:
         raise ValueError(f"No patient found with ID '{patient_id}'.")
+    
+    await patient.delete()
     
     return patient

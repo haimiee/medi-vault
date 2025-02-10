@@ -53,4 +53,6 @@ async def delete_drug(drug_id: int):
     if not drug:
         raise ValueError(f"No patient found with ID '{drug_id}'.")
     
+    await drug.delete()
+    
     return drug
