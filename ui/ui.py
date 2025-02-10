@@ -140,11 +140,20 @@ async def save_drug_info(dialog, drug_name):
 
         ui.notify(f"Drug '{drug_name}' added successfully", type='positive')
 
-        view_patients_table.refresh() # Refresh drugs table
+        view_drugs_table.refresh() # Refresh drugs table
         dialog.close() # Close dialog UI after successfully saving
 
     except Exception as e:
         ui.notify(str(e), type='negative')
+
+# Function to delete drugs in the database
+async def handle_delete_drugs(selected_ids):
+    for drug in selected_ids:
+        try:
+            await delete_drug(drug)
+            view_drugs_table.refresh()
+        except Exception as e:
+            ui.notify(e, type='negative')
 
 # Function for refreshable drugs table/grid
 @ui.refreshable
@@ -181,6 +190,23 @@ async def view_drugs_table():
     }).on('cellValueChanged', handle_cell_value_change)
 
     aggrid.classes(add='ag-theme-balham-dark') # Dark theme for grid
+
+    # Function to delete selected UI row(s) (inspired by NiceGUI)
+    async def delete_selected():
+        selected_rows = await aggrid.get_selected_rows()  # Get selected rows
+
+        if not selected_rows:
+            ui.notify("No drug selected!", type="negative")
+            return
+
+        selected_ids = [row["ID"] for row in selected_rows]  # Extract selected IDs
+        new_rows = [row for row in aggrid.options['rowData'] if row["ID"] not in selected_ids]
+
+        aggrid.options['rowData'] = new_rows  # Update grid data
+        await handle_delete_drugs(selected_ids)
+        ui.notify(f"Deleted drug(s) with ID(s): {selected_ids}", type="positive")
+
+    ui.button('Delete selected', on_click=delete_selected)
 
 # UI dialog to input new drug info
 async def add_prescription_popup():
@@ -220,6 +246,15 @@ async def save_prescription_info(dialog, patient_email, drug_name, dosage, refil
 
     except Exception as e:
         ui.notify(str(e), type='negative')
+
+# Function to delete prescriptions in the database
+async def handle_delete_prescriptions(selected_ids):
+    for p in selected_ids:
+        try:
+            await delete_prescription(p)
+            view_prescriptions_table.refresh()
+        except Exception as e:
+            ui.notify(e, type='negative')
 
 # Function for refreshable prescriptions table/grid
 @ui.refreshable
@@ -272,6 +307,22 @@ async def view_prescriptions_table():
 
     aggrid.classes(add='ag-theme-balham-dark') # Dark theme for grid
 
+    # Function to delete selected UI row(s) (inspired by NiceGUI)
+    async def delete_selected():
+        selected_rows = await aggrid.get_selected_rows()  # Get selected rows
+
+        if not selected_rows:
+            ui.notify("No prescription selected!", type="negative")
+            return
+
+        selected_ids = [row["ID"] for row in selected_rows]  # Extract selected IDs
+        new_rows = [row for row in aggrid.options['rowData'] if row["ID"] not in selected_ids]
+
+        aggrid.options['rowData'] = new_rows  # Update grid data
+        await handle_delete_prescriptions(selected_ids)
+        ui.notify(f"Deleted prescription(s) with ID(s): {selected_ids}", type="positive")
+
+    ui.button('Delete selected', on_click=delete_selected)
 
 def run_ui():
 
