@@ -46,6 +46,14 @@ async def save_patient_info(dialog, first_name, last_name, dob, email):
     except Exception as e:
         ui.notify(str(e), type='negative')
 
+# Function to delete patients in the database
+async def handle_delete_patients(selected_ids):
+    for patient in selected_ids:
+        try:
+            await delete_patient(patient)
+            view_patients_table.refresh()
+        except Exception as e:
+            ui.notify(e, type='negative')
 
 # Function for refreshable patients table/grid
 @ui.refreshable
@@ -89,13 +97,22 @@ async def view_patients_table():
 
     aggrid.classes(add='ag-theme-balham-dark') # Dark theme for grid
 
-    # async def delete_selected():
-    #     selected_id = [row['id'] for row in await aggrid.get_selected_rows()]
-    #     rows[:] = [row for row in rows if row['id'] not in selected_id]
-    #     ui.notify(f'Deleted row with ID {selected_id}')
-    #     aggrid.update()
+    # Function to delete selected UI row(s) (inspired by NiceGUI)
+    async def delete_selected():
+        selected_rows = await aggrid.get_selected_rows()  # Get selected rows
 
-    # ui.button('Delete selected', on_click=delete_selected)
+        if not selected_rows:
+            ui.notify("No patient selected!", type="negative")
+            return
+
+        selected_ids = [row["ID"] for row in selected_rows]  # Extract selected IDs
+        new_rows = [row for row in aggrid.options['rowData'] if row["ID"] not in selected_ids]
+
+        aggrid.options['rowData'] = new_rows  # Update grid data
+        await handle_delete_patients(selected_ids)
+        ui.notify(f"Deleted patient(s) with ID(s): {selected_ids}", type="positive")
+
+    ui.button('Delete selected', on_click=delete_selected)
 
 # UI dialog to input new drug info
 async def add_drug_popup():
@@ -274,27 +291,27 @@ def run_ui():
             
             # Patients Tab
             with ui.tab_panel(patients_tab):
+                
+                with ui.row().classes('items-center justify-between w-full mt-2'): # Single row of button to allow justify
+
+                    ui.button("+", on_click=add_patient_popup).classes('ml-auto') # Justify + button to the right
+                
                 await view_patients_table()
-                # Single row of buttons
-                with ui.row().classes('items-center justify-between w-full mt-2'):
-                    ui.button("Add Patient", on_click=add_patient_popup)
-                    ui.button("Delete Patient")
-                    ui.checkbox("Select multiple").classes('ml-auto')
 
             # Drugs Tab
             with ui.tab_panel(drugs_tab):
-                await view_drugs_table()
+
                 with ui.row().classes('items-center justify-between w-full mt-2'):
-                    ui.button("Add Drug", on_click=add_drug_popup)
-                    ui.button("Delete Drug")
-                    ui.checkbox("Select multiple").classes('ml-auto')
+                    ui.button("+", on_click=add_drug_popup).classes('ml-auto')
+                
+                await view_drugs_table()
             
             # Prescriptions Tab
             with ui.tab_panel(prescriptions_tab):
-                await view_prescriptions_table()
+                
                 with ui.row().classes('items-center justify-between w-full mt-2'):
-                    ui.button("Add Prescription", on_click=add_prescription_popup)
-                    ui.button("Delete Prescription")
-                    ui.checkbox("Select multiple").classes('ml-auto')
+                    ui.button("+", on_click=add_prescription_popup).classes('ml-auto')
+                
+                await view_prescriptions_table()
 
 ui.run(dark=True)
